@@ -1,13 +1,12 @@
 package com.example.prodigy.imageupload;
 
-import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -15,25 +14,18 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-
 import com.theartofdev.edmodo.cropper.CropImage;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.RequestBody;
-import okhttp3.ResponseBody;
-import okhttp3.logging.HttpLoggingInterceptor;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+
+    private static final String TAG = "MainActivity";
 
     private Button uploadButton;
     private Button chooseButton;
@@ -58,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View view) {
-        switch(view.getId()){
+        switch (view.getId()) {
             case R.id.choosebn:
                 selectImage();
                 break;
@@ -68,45 +60,52 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public void selectImage(){
+    public void selectImage() {
         Intent intent = new Intent();
         intent.setType("image/*");
         intent.setAction(Intent.ACTION_GET_CONTENT);
-        startActivityForResult(intent,IMAGE_REQUEST);
+        startActivityForResult(intent, IMAGE_REQUEST);
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        Uri imageUri;
-        if (requestCode == IMAGE_REQUEST && resultCode == RESULT_OK && data != null) {
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        if (requestCode == IMAGE_REQUEST && resultCode == RESULT_OK && intent != null) {
 
-            //handleCrop(resultCode,data);
-            /*try {
-                bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), path);
-                imageView.setImageBitmap(bitmap);
-                imageView.setVisibility(View.VISIBLE);
-               // performCrop();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }*/
-        }/* else if (requestCode == PIC_CROP && resultCode == RESULT_OK) {
-            Bundle extras = data.getExtras();
-            bitmap = extras.getParcelable("data");
-            imageView.setImageBitmap(bitmap);
+            path = intent.getData();
+            CropImage.activity(path)
+                    .start(this);
 
-        }*/
+            // performCrop();
+
+        }
+        if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
+            CropImage.ActivityResult result = CropImage.getActivityResult(intent);
+            if (resultCode == RESULT_OK) {
+                try {
+                    path = result.getUri();
+                    bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), path);
+                    imageView.setImageBitmap(bitmap);
+                    imageView.setVisibility(View.VISIBLE);
+                } catch (IOException e) {
+                    Log.e(TAG, "onActivityResult: ", e);
+                }
+            } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
+                Exception error = result.getError();
+                Log.e(TAG, "onActivityResult: ", error);
+            }
+        }
     }
 
 
-    private String imageToString(){
+    private String imageToString() {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG,100,byteArrayOutputStream);
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream);
         byte[] imageByte = byteArrayOutputStream.toByteArray();
-        return Base64.encodeToString(imageByte,Base64.DEFAULT);
+        return Base64.encodeToString(imageByte, Base64.DEFAULT);
     }
 
-    private class AsyncUpload extends AsyncTask<Void, Void, Void>{
+    private class AsyncUpload extends AsyncTask<Void, Void, Void> {
 
         @Override
         protected Void doInBackground(Void... voids) {
@@ -115,7 +114,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void uploadImage(){
+    private void uploadImage() {
         final String Image = imageToString();
 
         ApiInterface apiInterface = ApiClient.getApiClient().create(ApiInterface.class);
@@ -124,12 +123,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onResponse(Call<ImageClass> call, Response<ImageClass> response) {
                 ImageClass imageClass = response.body();
-                Toast.makeText(getApplicationContext(),imageClass.getResponse(),Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(), imageClass.getResponse(), Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onFailure(Call<ImageClass> call, Throwable t) {
-                Toast.makeText(getApplicationContext(),"Failure",Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(), "Failure", Toast.LENGTH_LONG).show();
             }
         });
     }
